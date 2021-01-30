@@ -17,6 +17,7 @@ commands:
   build:
     steps:
       - run: ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+      - run: apt update
       - run: apt install -y apt-transport-https ca-certificates gnupg software-properties-common wget
       - run: wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
       - run: apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' -y
