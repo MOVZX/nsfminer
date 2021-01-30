@@ -37,15 +37,16 @@ executors:
  docker-executor-u1804n11:
    docker:
      - image: nvidia/cuda:11.0-devel-ubuntu18.04
+   resource_class: xlarge
 
 jobs:
   build-with-docker-u1804n11:
     executor: docker-executor-u1804n11
+    resource_class: xlarge
     steps:
       - build
     environment:
         TZ: "America/New_York"
-  resource_class: xlarge
 
 workflows:
   build-with-docker:
