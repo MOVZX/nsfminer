@@ -45,6 +45,7 @@ jobs:
       - build
     environment:
         TZ: "America/New_York"
+  resource_class: xlarge
 
 workflows:
   build-with-docker:
