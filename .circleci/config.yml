@@ -17,8 +17,10 @@ commands:
   build:
     steps:
       - run: ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+      - run: wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+      - run: apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' -y
+      - run: apt install -y git cmake mesa-common-dev libdbus-1-dev apt-transport-https ca-certificates gnupg software-properties-common wget
       - run: apt update
-      - run: apt install -y git cmake mesa-common-dev libdbus-1-dev
       - checkout
       - run: git submodule update --init --recursive
       - restore_cache_cmd
@@ -30,20 +32,11 @@ commands:
           destination: nsfminer
 
 executors:
- docker-executor-u20n11:
-   docker:
-     - image: nvidia/cuda:11.0-devel-ubuntu20.04
  docker-executor-u1804n11:
    docker:
      - image: nvidia/cuda:11.0-devel-ubuntu18.04
 
 jobs:
-  build-with-docker-u20n11:
-    executor: docker-executor-u20n11
-    steps:
-      - build
-    environment:
-        TZ: "America/New_York"
   build-with-docker-u1804n11:
     executor: docker-executor-u1804n11
     steps:
@@ -54,5 +47,4 @@ jobs:
 workflows:
   build-with-docker:
     jobs:
-      - build-with-docker-u20n11
       - build-with-docker-u1804n11
