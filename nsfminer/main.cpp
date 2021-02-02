@@ -539,7 +539,11 @@ public:
 
                 "Hex string specifying the upper bits of miner's "
                 "start nonce. Can be used to ensure multiple miners "
-                "are not searching overlapping nonce ranges.");
+                "are not searching overlapping nonce ranges.")
+
+            ("devices", value<vector<unsigned>>()->multitoken(),
+
+                "List of space separated device numbers to be used");
 #if API_CORE
 
         api.add_options()
@@ -620,8 +624,19 @@ public:
         variables_map vm;
         try
         {
-            store(parse_command_line(argc, argv, all), vm);
+            parsed_options parsed =
+                command_line_parser(argc, argv).options(all).allow_unregistered().run();
+            store(parsed, vm);
             notify(vm);
+            vector<string> unknown = collect_unrecognized(parsed.options, include_positional);
+            if (unknown.size())
+            {
+                cout << endl << "Error: Unknown parameter(s):";
+                for (const auto& u : unknown)
+                    cout << ' ' << u;
+                cout << endl << endl;
+                return false;
+            }
         }
         catch (boost::program_options::error& e)
         {
@@ -777,6 +792,9 @@ public:
         m_cliDisplayInterval = vm["display-interval"].as<unsigned>();
         should_list = m_shouldListDevices = vm.count("list-devices");
         m_multi = vm.count("multi");
+        if (vm.count("devices"))
+            for (auto& d : vm["devices"].as<vector<unsigned>>())
+                m_devices.push_back(d);
 
         m_FarmSettings.hwMon = vm["HWMON"].as<unsigned>();
         m_FarmSettings.eval = vm.count("eval");
@@ -896,6 +914,7 @@ public:
         return true;
     }
 
+
     void execute()
     {
 #if ETH_ETHASHCL
@@ -958,7 +977,7 @@ public:
                  << " ";
 
             cout << resetiosflags(ios::left) << endl;
-            map<string, DeviceDescriptor>::iterator it = m_DevicesCollection.begin();
+            minerMap::iterator it = m_DevicesCollection.begin();
             while (it != m_DevicesCollection.end())
             {
                 auto i = distance(m_DevicesCollection.begin(), it);
@@ -1010,7 +1029,10 @@ public:
                 if (!it->second.cuDetected ||
                     it->second.subscriptionType != DeviceSubscriptionTypeEnum::None)
                     continue;
-                it->second.subscriptionType = DeviceSubscriptionTypeEnum::Cuda;
+                unsigned d = (unsigned)distance(m_DevicesCollection.begin(), it);
+                if (m_devices.empty() ||
+                    find(m_devices.begin(), m_devices.end(), d) != m_devices.end())
+                    it->second.subscriptionType = DeviceSubscriptionTypeEnum::Cuda;
             }
 #endif
 #if ETH_ETHASHCL
@@ -1020,7 +1042,10 @@ public:
                 if (!it->second.clDetected ||
                     it->second.subscriptionType != DeviceSubscriptionTypeEnum::None)
                     continue;
-                it->second.subscriptionType = DeviceSubscriptionTypeEnum::OpenCL;
+                unsigned d = (unsigned)distance(m_DevicesCollection.begin(), it);
+                if (m_devices.empty() ||
+                    find(m_devices.begin(), m_devices.end(), d) != m_devices.end())
+                    it->second.subscriptionType = DeviceSubscriptionTypeEnum::OpenCL;
             }
 #endif
 #if ETH_ETHASHCPU
@@ -1103,7 +1128,7 @@ private:
     boost::asio::io_service::strand m_io_strand;    // A strand to serialize posts in
                                                     // multithreaded environment
     // Physical Mining Devices descriptor
-    map<string, DeviceDescriptor> m_DevicesCollection;
+    minerMap m_DevicesCollection;
 
     // Mining options
     MinerType m_minerType = MinerType::Mixed;
@@ -1120,6 +1145,7 @@ private:
     mutex m_climtx;
 
     bool m_multi;
+    vector<unsigned> m_devices;
 
 #if API_CORE
     // -- API and Http interfaces related params

@@ -23,7 +23,7 @@ public:
     ~CUDAMiner() override;
 
     static int getNumDevices();
-    static void enumDevices(std::map<string, DeviceDescriptor>& _DevicesCollection);
+    static void enumDevices(minerMap& _DevicesCollection);
 
 protected:
     bool initDevice() override;
@@ -46,6 +46,7 @@ private:
     size_t m_allocated_memory_light_cache = 0;
 
     volatile bool m_done = true;
+    std::mutex m_doneMutex;
 };
 
 

@@ -47,17 +47,15 @@ struct FarmSettings
     bool clBin;
 };
 
-/**
- * @brief A collective of Miners.
- * Miners ask for work, then submit proofs
- * @threadsafe
- */
+typedef std::map<string, DeviceDescriptor> minerMap;
+typedef std::map<string, int> telemetryMap;
+
 class Farm : public FarmFace
 {
 public:
     unsigned tstart = 0, tstop = 0;
 
-    Farm(std::map<std::string, DeviceDescriptor>& _DevicesCollection, FarmSettings _settings);
+    Farm(minerMap& _DevicesCollection, FarmSettings _settings);
 
     ~Farm();
 
@@ -147,7 +145,7 @@ private:
 
     // Wrappers for hardware monitoring libraries and their mappers
     wrap_nvml_handle* nvmlh = nullptr;
-    std::map<string, int> map_nvml_handle = {};
+    telemetryMap map_nvml_handle = {};
 
 #if defined(__linux)
     wrap_amdsysfs_handle* sysfsh = nullptr;
@@ -158,7 +156,7 @@ private:
 #endif
 
     static Farm* m_this;
-    std::map<std::string, DeviceDescriptor>& m_DevicesCollection;
+    minerMap& m_DevicesCollection;
 
     random_device m_engine;
 };
