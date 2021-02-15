@@ -1,3 +1,11 @@
+/* Copyright (C) 1883 Thomas Edison - All Rights Reserved
+ * You may use, distribute and modify this code under the
+ * terms of the GPLv3 license, which unfortunately won't be
+ * written for another century.
+ *
+ * You should have received a copy of the LICENSE file with
+ * this file.
+ */
 
 #if defined(__linux__)
 #include <execinfo.h>
@@ -16,20 +24,20 @@
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #endif
 
-#include <libethcore/Farm.h>
+#include <libeth/Farm.h>
 #if ETH_ETHASHCL
-#include <libethash-cl/CLMiner.h>
+#include <libcl/CLMiner.h>
 #endif
 #if ETH_ETHASHCUDA
-#include <libethash-cuda/CUDAMiner.h>
+#include <libcuda/CUDAMiner.h>
 #endif
 #if ETH_ETHASHCPU
-#include <libethash-cpu/CPUMiner.h>
+#include <libcpu/CPUMiner.h>
 #endif
-#include <libpoolprotocols/PoolManager.h>
+#include <libpool/PoolManager.h>
 
 #if API_CORE
-#include <libapicore/ApiServer.h>
+#include <libapi/ApiServer.h>
 #include <regex>
 #endif
 
@@ -120,7 +128,7 @@ static void on_help_module(string m)
 #if API_CORE
             "api",
 #endif
-            "con", "test", "misc",
+            "con", "test", "misc", "exp",
 #ifdef _WIN32
             "env",
 #endif
@@ -143,7 +151,7 @@ static void on_help_module(string m)
 #if API_CORE
         "api, "
 #endif
-        "con, test, misc, "
+        "con, test, misc, exp, "
 #ifdef _WIN32
         "env, "
 #endif
@@ -241,7 +249,7 @@ public:
     {
         if (!ec && g_running)
         {
-            if (m_multi)
+            if (g_logOptions & LOG_MULTI)
             {
                 list<string> vs;
                 Farm::f().Telemetry().strvec(vs);
@@ -439,22 +447,32 @@ public:
                 value<unsigned>()->default_value(0)->notifier(on_verbosity),
 
                 "Set output verbosity level. Use the sum of :\n"
-                "1 - to log stratum json messages\n"
-                "2 - to log found solutions per GPU")
+                "1 - log per GPU status lines\n"
+                "2 - log per GPU solutions\n"
+                "4 - log per GPU calculated effective hash rate\n"
+                "    (Experimental, see -H exp)"
+#ifdef DEV_BUILD
+                "\n16 - log stratum messages\n"
+                "32 - log connection events\n"
+                "64 - log job switch times\n"
+                "128 - log share submit times"
+#endif
+            )
 
-            ("farm-recheck", value<unsigned>()->default_value(500),
+            ("getwork-recheck", value<unsigned>()->default_value(500),
 
                 "Set polling interval for new work in getWork mode. "
                 "Value expressed in milliseconds. "
                 "It has no meaning in stratum mode")
 
-            ("farm-retries", value<unsigned>()->default_value(3),
-
-                "Set number of reconnection retries to same pool")
-
             ("retry-delay", value<unsigned>()->default_value(0),
 
                 "Delay in seconds before reconnection retry")
+
+            ("retry-max", value<unsigned>()->default_value(3),
+
+                "Set number of reconnection retries to same pool. "
+                "Set to 0 for infinite retries.")
 
             ("work-timeout", value<unsigned>()->default_value(180),
 
@@ -514,11 +532,6 @@ public:
                 "Lists the detected OpenCL/CUDA devices and "
                 "exits. Can be combined with -G or -U flags")
 #endif
-            ("eval",
-                "Enable host software re-evaluation of GPUs "
-                "found nonces. Trims some ms. from submission "
-                "time but it may increase rejected solution rate.")
-
             ("tstop", value<unsigned>()->default_value(0),
 
                 "Suspend mining on GPU which temperature is above "
@@ -533,6 +546,7 @@ public:
 
             ("multi,m",
 
+                "[DEPRECATED] Use --verbosity instead.\n"
                 "Use multi-line status display")
 
             ("nonce,n", value<string>()->default_value("")->notifier(on_nonce),
@@ -589,12 +603,12 @@ public:
 #endif
         test.add_options()
 
-            ("benchmark,M", value<unsigned>()->default_value(0),
+            ("benchmark,M", value<unsigned>(),
 
                 "Mining test. Used to test hashing speed. "
                 "Specify the block number to test on.")
 
-            ("simulate,Z", value<unsigned>()->default_value(0),
+            ("simulate,Z", value<unsigned>(),
 
                 "Mining test. Used to test hashing speed. "
                 "Specify the block number to test on.");
@@ -769,6 +783,15 @@ public:
                      << "    the search path.\n\n"
                      << "    For Linux:   reboot.sh\n\n"
                      << "    For Windows: reboot.bat\n\n";
+            else if (s == "exp")
+                cout << "\nMiner experimental features:\n\n"
+                     << "    The 'log effective hash rate' verbosity option enables\n"
+                     << "    the calculation and per GPU display of the effective hash rate\n"
+                     << "    based on shares accepted over time. NOTE: At this time this\n"
+                     << "    only works for pools with constant difficulty and the reported\n"
+                     << "    effective hash rates will only become statistically significant\n"
+                     << "    after many hours. These results are meaningless for pools\n"
+                     << "    that use the variable difficulty stratum2 protocol (nicehash).\n\n";
             return false;
         }
 
@@ -777,27 +800,28 @@ public:
         g_logSyslog = vm.count("syslog");
         g_exitOnError = vm.count("exit");
 
-        m_PoolSettings.getWorkPollInterval = vm["farm-recheck"].as<unsigned>();
-        m_PoolSettings.connectionMaxRetries = vm["farm-retries"].as<unsigned>();
+        m_PoolSettings.getWorkPollInterval = vm["getwork-recheck"].as<unsigned>();
+        m_PoolSettings.connectionMaxRetries = vm["retry-max"].as<unsigned>();
         m_PoolSettings.delayBeforeRetry = vm["retry-delay"].as<unsigned>();
         m_PoolSettings.noWorkTimeout = vm["work-timeout"].as<unsigned>();
         m_PoolSettings.noResponseTimeout = vm["response-timeout"].as<unsigned>();
         m_PoolSettings.reportHashrate = vm.count("report-hashrate");
         m_PoolSettings.poolFailoverTimeout = vm["failover-timeout"].as<unsigned>();
-        if (vm.count("simulation"))
+        if (vm.count("simulate"))
             m_PoolSettings.benchmarkBlock = vm["simulate"].as<unsigned>();
         if (vm.count("benchmark"))
             m_PoolSettings.benchmarkBlock = vm["benchmark"].as<unsigned>();
 
         m_cliDisplayInterval = vm["display-interval"].as<unsigned>();
         should_list = m_shouldListDevices = vm.count("list-devices");
-        m_multi = vm.count("multi");
+        if (vm.count("multi"))
+            g_logOptions |= LOG_MULTI;
+
         if (vm.count("devices"))
             for (auto& d : vm["devices"].as<vector<unsigned>>())
                 m_devices.push_back(d);
 
         m_FarmSettings.hwMon = vm["HWMON"].as<unsigned>();
-        m_FarmSettings.eval = vm.count("eval");
         m_FarmSettings.nonce = vm["nonce"].as<string>();
 
 #if ETH_ETHASHCUDA
@@ -862,7 +886,7 @@ public:
         else
             m_mode = OperationMode::Mining;
 
-        if (!m_shouldListDevices && m_mode != OperationMode::Simulation)
+        if (!m_shouldListDevices && (m_mode != OperationMode::Simulation))
         {
             if (!pools.size())
                 throw invalid_argument("At least one pool definition required. See -P argument.");
@@ -1144,7 +1168,6 @@ private:
     // -- CLI Flow control
     mutex m_climtx;
 
-    bool m_multi;
     vector<unsigned> m_devices;
 
 #if API_CORE

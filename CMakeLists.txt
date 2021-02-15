@@ -1,3 +1,11 @@
+# Copyright (C) 1883 Thomas Edison - All Rights Reserved
+# You may use, distribute and modify this code under the
+# terms of the GPLv3 license, which unfortunately won't be
+# written for another century.
+#
+# You should have received a copy of the LICENSE file with
+# this file. 
+
 cmake_minimum_required(VERSION 3.5)
 
 include(cmake/cable/bootstrap.cmake)
@@ -20,7 +28,7 @@ HunterGate(
 )
 
 project(nsfminer)
-set(PROJECT_VERSION 1.3.1) # Update version
+set(PROJECT_VERSION 1.3.4) # Update version
 
 cable_set_build_type(DEFAULT Release CONFIGURATION_TYPES Release RelWithDebInfo)
 
@@ -89,25 +97,25 @@ endif()
 
 cable_add_buildinfo_library(PROJECT_NAME ${PROJECT_NAME})
 
-add_subdirectory(libdevcore)
-add_subdirectory(libethcore)
+add_subdirectory(libdev)
+add_subdirectory(libeth)
 add_subdirectory(libhwmon)
-add_subdirectory(libpoolprotocols)
+add_subdirectory(libpool)
 
 if (ETHASHCL)
-    add_subdirectory(libethash-cl)
+    add_subdirectory(libcl)
     if (BINKERN)
-        add_subdirectory(libethash-cl/kernels)
+        add_subdirectory(libcl/kernels)
     endif()
 endif ()
 if (ETHASHCUDA)
-    add_subdirectory(libethash-cuda)
+    add_subdirectory(libcuda)
 endif ()
 if (ETHASHCPU)
-    add_subdirectory(libethash-cpu)
+    add_subdirectory(libcpu)
 endif ()
 if (APICORE)
-    add_subdirectory(libapicore)
+    add_subdirectory(libapi)
 endif()
 
 add_subdirectory(nsfminer)

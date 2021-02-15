@@ -1,3 +1,11 @@
+# Copyright (C) 1883 Thomas Edison - All Rights Reserved
+# You may use, distribute and modify this code under the
+# terms of the GPLv3 license, which unfortunately won't be
+# written for another century.
+#
+# You should have received a copy of the LICENSE file with
+# this file. 
+
 set(SOURCES
     wraphelper.cpp wraphelper.h
     wrapnvml.h wrapnvml.cpp
@@ -6,7 +14,7 @@ set(SOURCES
 )
 
 add_library(hwmon ${SOURCES})
-set(HWMON_LINK_LIBRARIES devcore)
+set(HWMON_LINK_LIBRARIES dev Boost::filesystem)
 
 if (UNIX)
 	list(APPEND HWMON_LINK_LIBRARIES dl)

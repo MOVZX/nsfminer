@@ -1,3 +1,11 @@
+# Copyright (C) 1883 Thomas Edison - All Rights Reserved
+# You may use, distribute and modify this code under the
+# terms of the GPLv3 license, which unfortunately won't be
+# written for another century.
+#
+# You should have received a copy of the LICENSE file with
+# this file. 
+
 cmake_policy(SET CMP0015 NEW)
 
 aux_source_directory(. SRC_LIST)
@@ -17,7 +25,7 @@ hunter_add_package(Boost COMPONENTS program_options)
 find_package(Boost CONFIG REQUIRED COMPONENTS program_options)
 
 target_link_libraries(nsfminer PRIVATE
-        ethcore poolprotocols devcore nsfminer-buildinfo Boost::system Boost::thread Boost::program_options)
+        eth pool dev nsfminer-buildinfo Boost::system Boost::thread Boost::program_options)
 
 if(ETHDBUS)
 	find_package(PkgConfig)
@@ -29,7 +37,7 @@ if(ETHDBUS)
 endif()
 
 if(APICORE)
-	target_link_libraries(nsfminer PRIVATE apicore)
+	target_link_libraries(nsfminer PRIVATE api)
 endif()
 
 include(GNUInstallDirs)
